@@ -1,0 +1,19 @@
+author: Xen0Xys
+name: MmcLibrary
+version: "1.0.0-alpha"
+api-version: "1.20"
+main: fr.xen0xys.multimc.papermc.sample.MmcLibrary
+
+commands:
+  debug:
+    permission: mmclibrary.debug
+    usage: /debug
+
+permissions:
+  mmclibrary.*:
+    description: Grants access to all MmcLibrary commands
+    children:
+      mmclibrary.debug: true
+  mmclibrary.debug:
+    description: Allows using /debug command
+    default: op
