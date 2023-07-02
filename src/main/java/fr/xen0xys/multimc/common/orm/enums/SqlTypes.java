@@ -1,5 +1,6 @@
 package fr.xen0xys.multimc.common.orm.enums;
 
+@SuppressWarnings("unused")
 public enum SqlTypes {
     TINYINT("TINYINT", "TINYINT", "SMALLINT"),
     SMALLINT("SMALLINT", "SMALLINT", "SMALLINT"),
@@ -16,30 +17,28 @@ public enum SqlTypes {
 
     private final String sqliteType;
     private final String mysqlType;
+    private final String mariadbType;
     private final String postgresqlType;
+
+    SqlTypes(String sqliteType, String mysqlType, String mariadbType, String postgresqlType) {
+        this.sqliteType = sqliteType;
+        this.mysqlType = mysqlType;
+        this.mariadbType = mariadbType;
+        this.postgresqlType = postgresqlType;
+    }
 
     SqlTypes(String sqliteType, String mysqlType, String postgresqlType) {
         this.sqliteType = sqliteType;
         this.mysqlType = mysqlType;
+        this.mariadbType = mysqlType;
         this.postgresqlType = postgresqlType;
-    }
-
-    public String getSqliteType() {
-        return sqliteType;
-    }
-
-    public String getMysqlType() {
-        return mysqlType;
-    }
-
-    public String getPostgresqlType() {
-        return postgresqlType;
     }
 
     public String get(DatabaseType databaseType) {
         return switch (databaseType) {
             case SQLITE -> sqliteType;
             case MYSQL -> mysqlType;
+            case MARIADB -> mariadbType;
             case POSTGRESQL -> postgresqlType;
         };
     }

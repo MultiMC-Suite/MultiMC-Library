@@ -6,39 +6,43 @@ import fr.xen0xys.multimc.common.orm.annotations.type.Table;
 import fr.xen0xys.multimc.common.orm.enums.DatabaseType;
 import fr.xen0xys.multimc.common.orm.enums.SqlKeywords;
 import fr.xen0xys.multimc.common.orm.enums.SqlTypes;
+import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.*;
 
 public class SimpleSession<T> {
 
     private final Connection connection;
+    private final DatabaseType databaseType;
 
-    public SimpleSession(Connection connection){
+    public SimpleSession(@NotNull final Connection connection, @NotNull final DatabaseType databaseType){
         this.connection = connection;
+        this.databaseType = databaseType;
     }
 
     /**
      * Create a table in the database
      * @param tableClass The class of the table to create
-     * @param databaseType The type of the database
      * @throws SQLException If an error occurs while creating the table
      */
-    public void createTable(Class<?> tableClass, DatabaseType databaseType) throws SQLException {
+    public void createTable(@NotNull final Class<?> tableClass) throws SQLException {
         StringBuilder queryBuilder = new StringBuilder();
         Table tableAnnotation = tableClass.getAnnotation(Table.class);
         queryBuilder.append("CREATE TABLE IF NOT EXISTS ")
                 .append(tableAnnotation.name().isEmpty() ? tableClass.getSimpleName() : tableAnnotation.name())
                 .append(" (");
-        for (Field field : tableClass.getDeclaredFields()) {
+        for (final Field field : tableClass.getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class)) {
                 Column columnAnnotation = field.getAnnotation(Column.class);
                 String columnName = columnAnnotation.name().isEmpty() ? field.getName() : columnAnnotation.name();
                 SqlTypes columnType = SqlTypes.fromString(field.getType());
                 queryBuilder.append(columnName)
                         .append(" ")
-                        .append(columnType.get(databaseType));
+                        .append(columnType.get(this.databaseType));
                 if (!columnAnnotation.nullable()) {
                     queryBuilder.append(" NOT NULL");
                 }
@@ -51,7 +55,7 @@ public class SimpleSession<T> {
                 if (primaryKeyAnnotation.autoIncrement()){
                     if(!field.getType().getSimpleName().toLowerCase().contains("int"))
                         throw new IllegalArgumentException("Auto increment primary key must be an integer");
-                    queryBuilder.append(" PRIMARY KEY %s".formatted(SqlKeywords.AUTO_INCREMENT.get(databaseType)));
+                    queryBuilder.append(" PRIMARY KEY %s".formatted(SqlKeywords.AUTO_INCREMENT.get(this.databaseType)));
                 }else
                     queryBuilder.append(" PRIMARY KEY");
             }
@@ -69,13 +73,13 @@ public class SimpleSession<T> {
      * @throws SQLException If an error occurs while saving the object
      * @throws IllegalAccessException If an error occurs while accessing the object's fields
      */
-    public void save(T object) throws SQLException, IllegalAccessException {
+    public void save(@NotNull final T object) throws SQLException, IllegalAccessException {
         Table tableAnnotation = object.getClass().getAnnotation(Table.class);
         Field autoIncrementField = null;
         StringBuilder columnsBuilder = new StringBuilder();
         List<Object> values = new ArrayList<>();
         StringBuilder valuesBuilder = new StringBuilder();
-        for(Field field : object.getClass().getDeclaredFields()){
+        for(final Field field : object.getClass().getDeclaredFields()){
             if(!field.isAnnotationPresent(Column.class))
                 continue;
             Column columnAnnotation = field.getAnnotation(Column.class);
@@ -119,7 +123,7 @@ public class SimpleSession<T> {
      * @throws SQLException If an error occurs while updating the object
      * @throws IllegalAccessException If an error occurs while accessing the object's fields
      */
-    public void update(T object) throws SQLException, IllegalAccessException {
+    public void update(@NotNull final T object) throws SQLException, IllegalAccessException {
         Table tableAnnotation = object.getClass().getAnnotation(Table.class);
         Field primaryKeyField = Arrays.stream(object.getClass().getDeclaredFields()).filter(field -> field.isAnnotationPresent(PrimaryKey.class)).findFirst().orElse(null);
         if(Objects.isNull(primaryKeyField))
@@ -128,7 +132,7 @@ public class SimpleSession<T> {
         primaryKeyField.setAccessible(true);
         StringBuilder setBuilder = new StringBuilder();
         List<Object> values = new ArrayList<>();
-        for(Field field : object.getClass().getDeclaredFields()){
+        for(final Field field : object.getClass().getDeclaredFields()){
             if(!field.isAnnotationPresent(Column.class))
                 continue;
             Column column = field.getAnnotation(Column.class);
@@ -155,7 +159,7 @@ public class SimpleSession<T> {
      * @throws IllegalAccessException If an error occurs while accessing the object's fields
      * @throws SQLException If an error occurs while deleting the object
      */
-    public void delete(T object) throws IllegalAccessException, SQLException {
+    public void delete(@NotNull final T object) throws IllegalAccessException, SQLException {
         Table tableAnnotation = object.getClass().getAnnotation(Table.class);
         Field field = Arrays.stream(object.getClass().getDeclaredFields()).filter(_field -> _field.isAnnotationPresent(PrimaryKey.class)).findFirst().orElse(null);
         if(Objects.isNull(field))
@@ -177,7 +181,7 @@ public class SimpleSession<T> {
      * @return The object from the database
      * @throws SQLException If an error occurs while getting the object
      */
-    public T get(Class<T> tableClass, Integer primaryKeyValue) throws SQLException {
+    public T get(@NotNull final Class<T> tableClass, @NotNull final Integer primaryKeyValue) throws SQLException {
         Table tableAnnotation = tableClass.getAnnotation(Table.class);
         Field pkField = Arrays.stream(tableClass.getDeclaredFields()).filter(_field -> _field.isAnnotationPresent(PrimaryKey.class)).findFirst().orElse(null);
         if(Objects.isNull(pkField))
@@ -201,7 +205,7 @@ public class SimpleSession<T> {
      * @return The list of objects from the database
      * @throws SQLException If an error occurs while getting the objects
      */
-    public List<T> get(Class<T> tableClass, String column, Object value) throws SQLException {
+    public List<T> get(@NotNull final Class<T> tableClass, @NotNull final String column, @NotNull final Object value) throws SQLException {
         Table tableAnnotation = tableClass.getAnnotation(Table.class);
         String query = "SELECT * FROM %s WHERE %s = '%s'".formatted(tableAnnotation.name().isEmpty() ? tableClass.getSimpleName() : tableAnnotation.name(), column, value);
         ResultSet rs = connection.createStatement().executeQuery(query);
@@ -218,7 +222,7 @@ public class SimpleSession<T> {
      * @return The list of objects from the database
      * @throws SQLException If an error occurs while getting the objects
      */
-    public List<T> getAll(Class<T> tableClass) throws SQLException {
+    public List<T> getAll(@NotNull final Class<T> tableClass) throws SQLException {
         Table tableAnnotation = tableClass.getAnnotation(Table.class);
         String query = "SELECT * FROM %s".formatted(tableAnnotation.name().isEmpty() ? tableClass.getSimpleName() : tableAnnotation.name());
         ResultSet rs = connection.createStatement().executeQuery(query);
@@ -230,7 +234,7 @@ public class SimpleSession<T> {
     }
 
     @SuppressWarnings("unchecked")
-    private T getObjectFromRS(Class<T> tableClass, ResultSet rs) throws RuntimeException{
+    private T getObjectFromRS(@NotNull final Class<T> tableClass, @NotNull final ResultSet rs) throws RuntimeException{
         Constructor<T> constructor = (Constructor<T>) Arrays.stream(tableClass.getConstructors()).filter(_constructor -> _constructor.getParameterCount() == 0).findFirst().orElse(null);
         if(Objects.isNull(constructor))
             throw new IllegalArgumentException("No empty constructor found");
@@ -241,7 +245,7 @@ public class SimpleSession<T> {
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
-        for(Field field : tableClass.getDeclaredFields()){
+        for(final Field field : tableClass.getDeclaredFields()){
             if(!field.isAnnotationPresent(Column.class))
                 continue;
             Column columnAnnotation = field.getAnnotation(Column.class);
@@ -256,7 +260,7 @@ public class SimpleSession<T> {
         return object;
     }
 
-    private Object cast(Class<?> type, Object value){
+    private Object cast(@NotNull final Class<?> type, @NotNull final Object value){
         if (type == Integer.class || type == int.class)
             return Integer.parseInt(value.toString());
         else if (type == Double.class || type == double.class)

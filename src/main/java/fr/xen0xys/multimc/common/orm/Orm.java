@@ -4,6 +4,7 @@ import fr.xen0xys.multimc.common.orm.annotations.field.PrimaryKey;
 import fr.xen0xys.multimc.common.orm.annotations.type.Table;
 import fr.xen0xys.multimc.common.orm.enums.DatabaseType;
 import fr.xen0xys.multimc.common.orm.session.SimpleSession;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -15,7 +16,7 @@ public abstract class Orm {
     private final DatabaseType databaseType;
     private final Connection connection;
 
-    public Orm(DatabaseType databaseType, String url) throws SQLException {
+    public Orm(@NotNull final DatabaseType databaseType, @NotNull final String url) throws SQLException {
         this.databaseType = databaseType;
         connection = DriverManager.getConnection(url);
     }
@@ -25,17 +26,17 @@ public abstract class Orm {
      * @param tableClass The class of the table to register
      * @throws SQLException If an error occurs while creating the table
      */
-    public <T> void registerTable(Class<T> tableClass) throws SQLException {
+    public <T> void registerTable(@NotNull final Class<T> tableClass) throws SQLException {
         if(!tableClass.isAnnotationPresent(Table.class))
             throw new IllegalArgumentException("Class " + tableClass.getName() + " is not an entity");
         if(!this.hasPrimaryKey(tableClass))
             throw new IllegalArgumentException("Class " + tableClass.getName() + " has no primary key");
-        SimpleSession<T> session = new SimpleSession<>(this.connection);
-        session.createTable(tableClass, this.databaseType);
+        SimpleSession<T> session = this.createSession();
+        session.createTable(tableClass);
     }
 
-    private boolean hasPrimaryKey(Class<?> tableClass){
-        for(Field field: tableClass.getDeclaredFields())
+    private boolean hasPrimaryKey(@NotNull final Class<?> tableClass){
+        for(final Field field: tableClass.getDeclaredFields())
             if(field.isAnnotationPresent(PrimaryKey.class))
                 return true;
         return false;
@@ -47,6 +48,6 @@ public abstract class Orm {
      * @param <T> The type of the session
      */
     public <T> SimpleSession<T> createSession() {
-        return new SimpleSession<>(this.connection);
+        return new SimpleSession<>(this.connection, this.databaseType);
     }
 }
